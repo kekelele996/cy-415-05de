@@ -46,5 +46,7 @@ const vantTheme = computed(() => toVantTheme(themeStore.theme));
 onMounted(async () => {
   themeStore.hydrate();
   await Promise.all([authStore.hydrate(), itemStore.hydrate(), exchangeStore.hydrate()]);
+  // 以交换记录为准修复物品预约锁，保证刷新/重新打开页面后状态一致
+  await exchangeStore.reconcileLocks();
 });
 </script>

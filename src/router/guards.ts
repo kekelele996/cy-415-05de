@@ -22,8 +22,15 @@ export const setupRouterGuards = (router: Router) => {
       await exchangeStore.hydrate();
     }
 
-    const statusProbe = itemStore.items.some((item) => item.status === ItemStatus.AVAILABLE);
-    const exchangeProbe = exchangeStore.exchanges.some((item) => item.status === ExchangeStatus.PENDING);
+    // 以交换记录为准修复物品预约锁，保证刷新/重新打开页面后状态一致
+    await exchangeStore.reconcileLocks();
+
+    const statusProbe = itemStore.items.some(
+      (item) => item.status === ItemStatus.AVAILABLE || item.status === ItemStatus.BOOKED,
+    );
+    const exchangeProbe = exchangeStore.exchanges.some(
+      (item) => item.status === ExchangeStatus.PENDING || item.status === ExchangeStatus.CANCELLED,
+    );
     if (import.meta.env.DEV && (statusProbe || exchangeProbe)) {
       console.debug(LOG_MESSAGES.storageHydrated);
     }

@@ -11,6 +11,7 @@
       <span>全部 {{ stats.total }}</span>
       <span>待确认 {{ stats.pending }}</span>
       <span>已同意 {{ stats.accepted }}</span>
+      <span>已撤回 {{ stats.cancelled }}</span>
       <span>已完成 {{ stats.completed }}</span>
     </div>
 
@@ -34,6 +35,7 @@
         :users="authStore.users"
         @accept="exchangeStore.accept"
         @reject="exchangeStore.reject"
+        @withdraw="exchangeStore.withdraw"
         @complete="completeExchange"
       />
     </div>
@@ -48,6 +50,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { useRoute } from 'vue-router';
 
 import EmptyState from '@/components/common/EmptyState.vue';
 import ExchangeCard from '@/components/common/ExchangeCard.vue';
@@ -58,10 +61,11 @@ import { useAuthStore } from '@/stores/authStore';
 import { useExchangeStore } from '@/stores/exchangeStore';
 import { useItemStore } from '@/stores/itemStore';
 
+const route = useRoute();
 const authStore = useAuthStore();
 const itemStore = useItemStore();
 const exchangeStore = useExchangeStore();
-const tab = ref<'sent' | 'received'>('sent');
+const tab = ref<'sent' | 'received'>(route.query.tab === 'received' ? 'received' : 'sent');
 
 const mine = computed(() => {
   if (!authStore.currentUser) return [];

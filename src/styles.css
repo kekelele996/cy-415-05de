@@ -295,6 +295,33 @@ main {
   color: #365f84;
 }
 
+.exchange-box--locked {
+  border: 1px solid color-mix(in oklch, #bb7a35, transparent 55%);
+  border-radius: 10px;
+  padding: 16px;
+  background: color-mix(in oklch, #bb7a35, transparent 92%);
+}
+
+.booking-tip {
+  margin: 0;
+  font-weight: 700;
+  color: #9b5c1c;
+}
+
+.booking-subtip {
+  margin: 0;
+  font-size: 0.88rem;
+  color: color-mix(in oklch, var(--rs-text), transparent 30%);
+}
+
+.withdraw-button {
+  justify-self: start;
+}
+
+button.withdraw-button {
+  background: color-mix(in oklch, #b04a3b, transparent 86%);
+}
+
 .gallery {
   display: grid;
   gap: 10px;

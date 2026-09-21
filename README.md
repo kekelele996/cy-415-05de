@@ -15,8 +15,11 @@ ReSwap 是一个纯前端以物换物 Web 应用。用户可以本地模拟登�
 
 - 首页瀑布流浏览、分类筛选、关键词搜索。
 - 物品详情、物主资料、选择自己的物品发起交换。
+- 预约锁：出现待确认申请后物品进入“预约中”，首页/详情/我的发布同步展示，他人不能重复申请。
+- 申请人可撤回申请，物主可拒绝或同意；撤回/拒绝后物品恢复可交换，同意后转为已交换。
+- 刷新或重新打开页面后以交换记录为准修复物品状态，避免重复占用。
 - 发布物品，支持本地 base64 图片上传、分类和成色选择。
-- 交换管理，区分我发起的和我收到的请求，支持同意、拒绝、完成。
+- 交换管理，区分我发起的和我收到的请求，支持撤回、同意、拒绝、完成。
 - 个人中心，编辑资料、上传头像、查看我发布的物品。
 - 主题切换、全局错误处理和 Vant 提示。
 
@@ -70,6 +73,7 @@ src/
 - 所有 `api/*Api.ts` 通过 `storage.ts` 读写数据，不在组件里直接写业务数据。
 - 存储层包含序列化、版本号、过期清理、存储 key 管理。
 - 首次启动会写入演示用户、物品和交换请求。
+- 启动时会以交换记录为事实来源修复物品的预约/交换状态（reconcile），保证刷新或重新打开页面后“预约中/可交换/已交换”一致。
 
 ## 横切关注点
 
@@ -93,12 +97,13 @@ src/
 - `src/utils/formatters.ts`
 - `src/components/common/ItemCard.vue`
 - `src/pages/ItemDetail.vue`
-- `src/pages/Publish.vue`
+- `src/pages/Home.vue`
 - `src/pages/Profile.vue`
+- `src/pages/Publish.vue`
 
 ### ExchangeStatus
 
-定义位置：`src/constants/exchange.ts`
+定义位置：`src/constants/exchange.ts`（PENDING / ACCEPTED / REJECTED / CANCELLED / COMPLETED）
 
 出现位置：
 
@@ -124,7 +129,7 @@ src/
 - `ItemStatus` 与 `ExchangeStatus` 被模型、API、store、组件、页面、router guards、formatters 多处引用。
 - `utils/storage.ts` 是存储入口，但全应用 API 和 store 都依赖它的 key 与数据结构。
 
-例如新增 `ItemStatus.BOOKED` 时，应至少修改：`src/constants/item.ts`、`src/models/item.ts`、`src/api/itemApi.ts`、`src/api/exchangeApi.ts`、`src/stores/itemStore.ts`、`src/router/guards.ts`、`src/utils/formatters.ts`、`src/constants/messages.ts`、`src/components/common/ItemCard.vue`、`src/pages/ItemDetail.vue`、`src/pages/Publish.vue` 等文件。
+预约锁状态机（`ItemStatus.BOOKED` 已落地）：`ExchangeStatus.PENDING` 会把双方物品置为 `BOOKED`，撤回（`CANCELLED`）/拒绝（`REJECTED`）在无其他进行中申请时恢复 `AVAILABLE`，同意（`ACCEPTED`）/完成（`COMPLETED`）置为 `EXCHANGED`；`exchangeApi.reconcileItemLocks` 在应用启动与路由守卫中以交换记录为准修复物品状态。相关改动触达：`src/constants/item.ts`、`src/models/item.ts`、`src/api/itemApi.ts`、`src/api/exchangeApi.ts`、`src/stores/itemStore.ts`、`src/stores/exchangeStore.ts`、`src/router/guards.ts`、`src/utils/formatters.ts`、`src/constants/messages.ts`、`src/components/common/ItemCard.vue`、`src/components/common/ExchangeCard.vue`、`src/pages/ItemDetail.vue`、`src/pages/Home.vue`、`src/pages/Exchanges.vue`、`src/pages/Profile.vue` 等文件。
 
 ## 环境变量
 

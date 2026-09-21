@@ -24,7 +24,9 @@ export const useItemStore = defineStore('items', {
           const keywordMatched = `${item.title}${item.description}${item.location}`
             .toLowerCase()
             .includes(state.keyword.toLowerCase());
-          return categoryMatched && keywordMatched && item.status === state.statusFilter;
+          // 首页同时展示可交换与预约中的物品，已交换/已下架不展示
+          const visible = item.status === ItemStatus.AVAILABLE || item.status === ItemStatus.BOOKED;
+          return categoryMatched && keywordMatched && visible;
         }),
         ['created_at'],
         ['desc'],
@@ -33,6 +35,10 @@ export const useItemStore = defineStore('items', {
     myItems: (state) => (userId: string) => state.items.filter((item) => item.user_id === userId),
     availableMyItems: (state) => (userId: string) =>
       state.items.filter((item) => item.user_id === userId && item.status === ItemStatus.AVAILABLE),
+    isItemLocked: (state) => (itemId: string) => {
+      const target = state.items.find((item) => item.id === itemId);
+      return target?.status === ItemStatus.BOOKED;
+    },
   },
   actions: {
     async hydrate() {

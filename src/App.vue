@@ -45,6 +45,9 @@ const vantTheme = computed(() => toVantTheme(themeStore.theme));
 
 onMounted(async () => {
   themeStore.hydrate();
-  await Promise.all([authStore.hydrate(), itemStore.hydrate(), exchangeStore.hydrate()]);
+  // 顺序保证：用户 -> 物品 -> 交换（交换水合会对账物品预约锁并回写 itemStore）
+  await authStore.hydrate();
+  await itemStore.hydrate();
+  await exchangeStore.hydrate();
 });
 </script>

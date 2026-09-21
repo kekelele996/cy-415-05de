@@ -46,6 +46,22 @@ const writeLocal = <T>(key: string, payload: T, ttl?: number) => {
   localStorage.setItem(key, JSON.stringify(envelope(payload, ttl)));
 };
 
+const safeIdbGet = async <T>(key: string): Promise<T | undefined> => {
+  try {
+    return await get<T>(key);
+  } catch {
+    return undefined;
+  }
+};
+
+const safeIdbSet = async (key: string, packed: PersistedEnvelope<unknown>) => {
+  try {
+    await set(key, packed);
+  } catch {
+    // 静默降级：localStorage 已写入，数据不会丢
+  }
+};
+
 export const storage = {
   async get<T>(key: string, fallback: T): Promise<T> {
     const localEnvelope = parseLocal<T>(key);
@@ -57,7 +73,7 @@ export const storage = {
       return localEnvelope.payload;
     }
 
-    const indexedEnvelope = await get<PersistedEnvelope<T>>(key);
+    const indexedEnvelope = await safeIdbGet<PersistedEnvelope<T>>(key);
     if (isExpired(indexedEnvelope ?? null)) {
       await this.remove(key);
       return fallback;
@@ -73,7 +89,8 @@ export const storage = {
     const plainPayload = toPlain(payload);
     const packed = envelope(plainPayload, ttl);
     localStorage.setItem(key, JSON.stringify(packed));
-    await set(key, packed);
+    // IndexedDB 不可用（隐私模式、配额受限等）时降级为纯 localStorage
+    await safeIdbSet(key, packed);
     return plainPayload;
   },
 

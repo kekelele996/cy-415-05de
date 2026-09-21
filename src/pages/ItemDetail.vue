@@ -29,26 +29,42 @@
         <UserBrief v-if="owner" :user="owner" />
 
         <div v-if="!isMine" class="exchange-box">
-          <label>
-            我的交换物
-            <select v-model="selectedItemId">
-              <option value="">选择一件我发布的可交换物品</option>
-              <option v-for="myItem in ownAvailableItems" :key="myItem.id" :value="myItem.id">
-                {{ myItem.title }}
-              </option>
-            </select>
-          </label>
-          <label>
-            留言
-            <textarea v-model="messageText" rows="3" />
-          </label>
-          <button class="primary-button" type="button" :disabled="item.status !== ItemStatus.AVAILABLE" @click="requestExchange">
-            发起交换
-          </button>
+          <template v-if="myPendingExchange">
+            <p class="form-note">{{ PAGE_MESSAGES.itemBookedByMe }}</p>
+            <button class="secondary-button" type="button" @click="withdrawRequest">
+              撤回我的申请
+            </button>
+          </template>
+          <template v-else>
+            <label>
+              我的交换物
+              <select v-model="selectedItemId" :disabled="item.status !== ItemStatus.AVAILABLE">
+                <option value="">选择一件我发布的可交换物品</option>
+                <option v-for="myItem in ownAvailableItems" :key="myItem.id" :value="myItem.id">
+                  {{ myItem.title }}
+                </option>
+              </select>
+            </label>
+            <label>
+              留言
+              <textarea v-model="messageText" rows="3" :disabled="item.status !== ItemStatus.AVAILABLE" />
+            </label>
+            <button class="primary-button" type="button" :disabled="item.status !== ItemStatus.AVAILABLE" @click="requestExchange">
+              {{ item.status === ItemStatus.BOOKED ? '预约中，不能重复申请' : '发起交换' }}
+            </button>
+            <p v-if="item.status === ItemStatus.BOOKED" class="form-note">
+              {{ PAGE_MESSAGES.itemBookedByOther }}
+            </p>
+          </template>
         </div>
-        <button v-else-if="item.status === ItemStatus.AVAILABLE" class="secondary-button" type="button" @click="offlineItem">
-          下架这件物品
-        </button>
+        <template v-else>
+          <button v-if="item.status === ItemStatus.AVAILABLE" class="secondary-button" type="button" @click="offlineItem">
+            下架这件物品
+          </button>
+          <p v-else-if="item.status === ItemStatus.BOOKED" class="form-note">
+            预约中：有人正在申请这件物品，请在“交换”页面同意或拒绝
+          </p>
+        </template>
       </article>
     </div>
   </section>
@@ -64,6 +80,7 @@ import ItemImageGallery from '@/components/common/ItemImageGallery.vue';
 import UserBrief from '@/components/common/UserBrief.vue';
 import { ExchangeStatus } from '@/constants/exchange';
 import { ItemStatus } from '@/constants/item';
+import { PAGE_MESSAGES } from '@/constants/messages';
 import { useAuthStore } from '@/stores/authStore';
 import { useExchangeStore } from '@/stores/exchangeStore';
 import { useItemStore } from '@/stores/itemStore';
@@ -81,6 +98,11 @@ const isMine = computed(() => authStore.currentUser?.id === item.value?.user_id)
 const ownAvailableItems = computed(() =>
   authStore.currentUser ? itemStore.availableMyItems(authStore.currentUser.id) : [],
 );
+// 当前登录用户针对这件物品的待确认申请，存在则展示撤回入口
+const myPendingExchange = computed(() => {
+  if (!authStore.currentUser || !item.value) return undefined;
+  return exchangeStore.pendingByUserForItem(authStore.currentUser.id, item.value.id);
+});
 const selectedItemId = ref('');
 const messageText = ref('我想用这件闲置与你交换，可以沟通时间和地点。');
 
@@ -91,7 +113,7 @@ const requestExchange = async () => {
     message('请选择一件自己的物品', 'error');
     return;
   }
-  await exchangeStore.create({
+  const exchange = await exchangeStore.create({
     from_user_id: authStore.currentUser.id,
     to_user_id: owner.value.id,
     from_item_id: selectedItemId.value,
@@ -99,6 +121,14 @@ const requestExchange = async () => {
     status: ExchangeStatus.PENDING,
     message: messageText.value,
   });
+  if (exchange) {
+    selectedItemId.value = '';
+  }
+};
+
+const withdrawRequest = async () => {
+  if (!myPendingExchange.value) return;
+  await exchangeStore.withdraw(myPendingExchange.value.id);
 };
 
 const offlineItem = async () => {

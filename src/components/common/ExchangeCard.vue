@@ -19,14 +19,15 @@
     <p>{{ exchange.message || formatStatusMessage(exchange.status) }}</p>
     <footer>
       <span v-if="fromUser && toUser">{{ fromUser.nickname }} → {{ toUser.nickname }}</span>
-      <div v-if="canOperate" class="exchange-card__actions">
-        <button v-if="exchange.status === ExchangeStatus.PENDING" type="button" @click="$emit('accept', exchange.id)">
-          同意
-        </button>
-        <button v-if="exchange.status === ExchangeStatus.PENDING" type="button" @click="$emit('reject', exchange.id)">
-          拒绝
-        </button>
-        <button v-if="exchange.status === ExchangeStatus.ACCEPTED" type="button" @click="$emit('complete', exchange.id)">
+      <div v-if="hasAction" class="exchange-card__actions">
+        <template v-if="exchange.status === ExchangeStatus.PENDING">
+          <button v-if="isOwner" type="button" @click="$emit('accept', exchange.id)">同意</button>
+          <button v-if="isOwner" type="button" @click="$emit('reject', exchange.id)">拒绝</button>
+          <button v-if="isApplicant" type="button" @click="$emit('withdraw', exchange.id)">
+            撤回申请
+          </button>
+        </template>
+        <button v-if="exchange.status === ExchangeStatus.ACCEPTED && canComplete" type="button" @click="$emit('complete', exchange.id)">
           完成
         </button>
       </div>
@@ -53,6 +54,7 @@ const props = defineProps<{
 defineEmits<{
   accept: [id: string];
   reject: [id: string];
+  withdraw: [id: string];
   complete: [id: string];
 }>();
 
@@ -61,9 +63,18 @@ const fromItem = computed(() => props.items.find((item) => item.id === props.exc
 const toItem = computed(() => props.items.find((item) => item.id === props.exchange.to_item_id));
 const fromUser = computed(() => props.users.find((user) => user.id === props.exchange.from_user_id));
 const toUser = computed(() => props.users.find((user) => user.id === props.exchange.to_user_id));
-const canOperate = computed(
+const isOwner = computed(() => authStore.currentUser?.id === props.exchange.to_user_id);
+const isApplicant = computed(() => authStore.currentUser?.id === props.exchange.from_user_id);
+const canComplete = computed(
   () =>
-    authStore.currentUser?.id === props.exchange.to_user_id ||
-    (authStore.currentUser?.id === props.exchange.from_user_id && props.exchange.status === ExchangeStatus.ACCEPTED),
+    isOwner.value ||
+    (isApplicant.value && props.exchange.status === ExchangeStatus.ACCEPTED),
+);
+const canOperate = computed(() => isOwner.value || isApplicant.value);
+const hasAction = computed(
+  () =>
+    canOperate.value &&
+    ((props.exchange.status === ExchangeStatus.PENDING) ||
+      (props.exchange.status === ExchangeStatus.ACCEPTED && canComplete.value)),
 );
 </script>

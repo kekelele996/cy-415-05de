@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { orderBy } from 'lodash-es';
 
 import { itemApi } from '@/api/itemApi';
-import { ItemStatus } from '@/constants/item';
+import { ItemStatus, VISIBLE_BROWSE_STATUSES } from '@/constants/item';
 import { FORM_MESSAGES } from '@/constants/messages';
 import type { Item, ItemDraft } from '@/models/item';
 import { message } from '@/utils/message';
@@ -24,7 +24,8 @@ export const useItemStore = defineStore('items', {
           const keywordMatched = `${item.title}${item.description}${item.location}`
             .toLowerCase()
             .includes(state.keyword.toLowerCase());
-          return categoryMatched && keywordMatched && item.status === state.statusFilter;
+          // 可交换与预约中的物品都在首页展示，预约中显示“预约中”且不能再申请
+          return categoryMatched && keywordMatched && VISIBLE_BROWSE_STATUSES.includes(item.status);
         }),
         ['created_at'],
         ['desc'],
@@ -33,6 +34,8 @@ export const useItemStore = defineStore('items', {
     myItems: (state) => (userId: string) => state.items.filter((item) => item.user_id === userId),
     availableMyItems: (state) => (userId: string) =>
       state.items.filter((item) => item.user_id === userId && item.status === ItemStatus.AVAILABLE),
+    bookedMyItems: (state) => (userId: string) =>
+      state.items.filter((item) => item.user_id === userId && item.status === ItemStatus.BOOKED),
   },
   actions: {
     async hydrate() {
@@ -64,6 +67,11 @@ export const useItemStore = defineStore('items', {
       return item;
     },
     async offline(itemId: string) {
+      const target = this.items.find((item) => item.id === itemId);
+      if (target?.status === ItemStatus.BOOKED) {
+        message('物品预约中，不能下架', 'error');
+        return;
+      }
       await itemApi.setStatus(itemId, ItemStatus.OFFLINE);
       this.items = await itemApi.list();
       message('物品已下架', 'success');

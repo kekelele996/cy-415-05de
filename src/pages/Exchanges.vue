@@ -11,6 +11,7 @@
       <span>全部 {{ stats.total }}</span>
       <span>待确认 {{ stats.pending }}</span>
       <span>已同意 {{ stats.accepted }}</span>
+      <span>已撤回 {{ stats.withdrawn }}</span>
       <span>已完成 {{ stats.completed }}</span>
     </div>
 
@@ -34,6 +35,7 @@
         :users="authStore.users"
         @accept="exchangeStore.accept"
         @reject="exchangeStore.reject"
+        @withdraw="exchangeStore.withdraw"
         @complete="completeExchange"
       />
     </div>
@@ -75,7 +77,6 @@ const stats = useExchangeStats(() => exchangeStore.exchanges);
 
 const completeExchange = async (id: string) => {
   await exchangeStore.complete(id);
-  itemStore.items = itemStore.items.map((item) => item);
 };
 
 void ExchangeStatus.PENDING;

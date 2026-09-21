@@ -15,6 +15,7 @@ export const setupRouterGuards = (router: Router) => {
     if (!authStore.currentUser) {
       await authStore.hydrate();
     }
+    // 物品必须先于交换记录加载：exchangeApi 对账预约锁时会回写物品状态
     if (!itemStore.items.length) {
       await itemStore.hydrate();
     }
@@ -22,8 +23,12 @@ export const setupRouterGuards = (router: Router) => {
       await exchangeStore.hydrate();
     }
 
-    const statusProbe = itemStore.items.some((item) => item.status === ItemStatus.AVAILABLE);
-    const exchangeProbe = exchangeStore.exchanges.some((item) => item.status === ExchangeStatus.PENDING);
+    const statusProbe = itemStore.items.some(
+      (item) => item.status === ItemStatus.AVAILABLE || item.status === ItemStatus.BOOKED,
+    );
+    const exchangeProbe = exchangeStore.exchanges.some(
+      (item) => item.status === ExchangeStatus.PENDING || item.status === ExchangeStatus.WITHDRAWN,
+    );
     if (import.meta.env.DEV && (statusProbe || exchangeProbe)) {
       console.debug(LOG_MESSAGES.storageHydrated);
     }
